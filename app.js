@@ -115,10 +115,8 @@ function drawPicture(gl) {
 
 function start() {
 	var c = document.getElementById("example");
-	
-	c.onclick = function(){
-		alert('Clickety Clack');
-	};
+
+	registerElementMouseDrag(c);
 
 	c.addEventListener('webglcontextlost', handleContextLost, false);
 	c.addEventListener('webglcontextrestored', handleContextRestored, false);
@@ -149,6 +147,63 @@ function start() {
 	function handleContextRestored() {
 		init();
 		f();
+	}
+
+	var arrayOfEvents = [];
+
+	function registerElementMouseDrag(element) {
+		window.flag = 0;
+
+		element.addEventListener("mousedown", function(e) {
+			arrayOfEvents.push(e);
+			console.log("mousedown");
+			window.flag = 0;
+		}, false);
+
+		element.addEventListener("mousemove", function(e) {
+			arrayOfEvents.push(e);
+			window.flag = 1;
+			console.log("mousemove");
+		}, false);
+
+		element.addEventListener("mouseup", function(e) {
+			arrayOfEvents.push(e);
+
+			console.log("mouseup = " + arrayOfEvents.toString());
+
+			if (window.flag === 0) {
+				console.log("click");
+			} else if (window.flag === 1) {
+				console.log("drag");
+				getClickPosition(e);
+			}
+
+			arrayOfEvents = [];
+		}, false);
+
+	}
+
+	function getClickPosition(e) {
+		var parentPosition = getPosition(e.currentTarget);
+		var xPosition = e.clientX - parentPosition.x;
+		var yPosition = e.clientY - parentPosition.y;
+
+		currentAngle += xPosition;
+	}
+
+	function getPosition(element) {
+		var xPosition = 0;
+		var yPosition = 0;
+
+		while (element) {
+			xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
+			yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
+			element = element.offsetParent;
+		}
+		return {
+			x : xPosition,
+			y : yPosition
+		};
 	}
 
 }

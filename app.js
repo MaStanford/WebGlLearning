@@ -46,7 +46,7 @@ function init() {
     g.box = makeBox(gl);
  
     // Load an image to use. Returns a WebGLTexture object
-    spiritTexture = loadImageTexture(gl, "resources/spirit.jpg");
+    spiritTexture = loadImageTexture(gl, "resources/image.jpeg");
  
     // Create some matrices to use later and save their locations in the shaders
     g.mvMatrix = new J3DIMatrix4();

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1">
+
+		<title>Web GL</title>
+
+		<style>
+			body {
+				border:1px solid black;
+			}
+		</style>
+		<br />
+
+		<script type="text/javascript" src="webgl-debug.js"></script>
+		<script type="text/javascript" src="app.js" ></script>
+
+		<script id="shader-fs" type="x-shader/x-fragment">
+			varying lowp vec4 vColor;
+
+			void main(void) {
+			gl_FragColor = vColor;
+			}
+		</script>
+
+		<script id="shader-vs" type="x-shader/x-vertex">
+			attribute vec3 aVertexPosition;
+			attribute vec4 aVertexColor;
+
+			uniform mat4 uMVMatrix;
+			uniform mat4 uPMatrix;
+
+			varying lowp vec4 vColor;
+
+			void main(void) {
+			gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+			vColor = aVertexColor;
+			}
+		</script>
+
+		<script id="vshader" type="x-shader/x-vertex">
+			uniform mat4 u_modelViewProjMatrix;
+			uniform mat4 u_normalMatrix;
+			uniform vec3 lightDir;
+
+			attribute vec3 vNormal;
+			attribute vec4 vTexCoord;
+			attribute vec4 vPosition;
+
+			varying float v_Dot;
+			varying vec2 v_texCoord;
+
+			void main()
+			{
+			gl_Position = u_modelViewProjMatrix * vPosition;
+			v_texCoord = vTexCoord.st;
+			vec4 transNormal = u_normalMatrix * vec4(vNormal, 1);
+			v_Dot = max(dot(transNormal.xyz, lightDir), 0.0);
+			}
+		</script>
+
+		<script id="fshader" type="x-shader/x-fragment">
+			precision mediump float;
+
+			uniform sampler2D sampler2d;
+
+			varying float v_Dot;
+			varying vec2 v_texCoord;
+
+			void main()
+			{
+			vec2 texCoord = vec2(v_texCoord.s, 1.0 - v_texCoord.t);
+			vec4 color = texture2D(sampler2d, texCoord);
+			color += vec4(0.1, 0.1, 0.1, 1);
+			gl_FragColor = vec4(color.xyz * v_Dot, color.a);
+			}
+		</script>
+
+	</head>
+
+	<body onload="init()">
+		<canvas id="glcanvas" width="640" height="480">
+			Your browser doesn't appear to support the HTML5 <code>
+				&lt;canvas&gt;</code>
+			element.
+		</canvas>
+	</body>
+
+</html>

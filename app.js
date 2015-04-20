@@ -2,6 +2,7 @@
 // window.addEventListener("load", function() {
 	// init();
 // });
+var g = {};
 
 function initWebGL(canvas) {
 	gl = null;

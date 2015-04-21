@@ -1,20 +1,17 @@
-var g = {};
-var artwork = '';
-var images = [];
 var canvasid = '';
-var directionSpin = true;
-var directionTilt = true;
-var currentSpin = 0;
-var currentTilt = 0;
-var incTilt = 0.1;
-var incSpin = 0.5;
+var drawables = [];
 
 /**
  * Drawable to draw to screen.
  */
-function drawable() {
+function drawable(shape, artworkUrl) {
 	this.shape = {};
-	this.artworkUrl = '';
+	
+	if(artworkUrl){
+		this.artworkUrl = artworkUrl;
+	}else{
+		this.artworkUrl = "resources/image.jpeg";
+	}
 	this.canvasid = '';
 	this.directionSpin = true;
 	this.directionTilt = true;
@@ -27,27 +24,36 @@ function drawable() {
 	this.u_normalMatrixLoc = 0;
 	this.normalMatrix = new J3DIMatrix4();
 	this.u_modelViewProjMatrixLoc = 0;
-	this.mvpMatrix = new J3DIMatrix4(); 
-	
-	
-	// Create a box. On return 'gl' contains a 'box' property with
+	this.mvpMatrix = new J3DIMatrix4();
+
+	// Create a shape. On return 'gl' contains a 'box' property with
 	// the BufferObjects containing the arrays for vertices,
 	// normals, texture coords, and indices.
-	this.shape = makeBox(gl);
+	switch(shape) {
+	case 0:
+		this.shape = makeBox(gl);
+		break;
+	case 1:
+		this.shape = makeSphere(gl);
+		break;
+	default:
+		this.shape = makeBox(gl);
+		break;
+	}
 
 	// Load an image to use. Returns a WebGLTexture object
 	this.texture = loadImageTexture(gl, this.artworkUrl);
 };
 
 /**
- * Draw function will draw the buffers to screen 
+ * Draw function will draw the buffers to screen
  */
-drawable.prototype.draw = function(){
-	
+drawable.prototype.draw = function() {
+
 	/**
 	 * Set up the program, shaders, locs etc.
 	 */
-	
+
 	var program = simpleSetup(gl,
 	// The ids of the vertex and fragment shaders
 	"vshader", "fshader",
@@ -83,129 +89,29 @@ drawable.prototype.draw = function(){
 
 	// Bind the index array
 	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shape.indexObject);
-};
-
-
-function init(artworkurl) {
-
-	if (artworkurl) {
-		artwork = artworkurl;
-	} else {
-		//Set the default here
-		artwork = "resources/image.jpeg";
-	}
-
-	// Initialize
-	var gl = initWebGL("example");
-	if (!gl) {
-		return;
-	}
-	var program = simpleSetup(gl,
-	// The ids of the vertex and fragment shaders
-	"vshader", "fshader",
-	// The vertex attribute names used by the shaders.
-	// The order they appear here corresponds to their index
-	// used later.
-	["vNormal", "vColor", "vPosition"],
-	// The clear color and depth values
-	[0, 0, 0.5, 1], 10000);
-
-	// Set some uniform variables for the shaders
-	gl.uniform3f(gl.getUniformLocation(program, "lightDir"), 0, 0, 1);
-	gl.uniform1i(gl.getUniformLocation(program, "sampler2d"), 0);
-
-	// Create a box. On return 'gl' contains a 'box' property with
-	// the BufferObjects containing the arrays for vertices,
-	// normals, texture coords, and indices.
-	g.box = makeBox(gl);
-	g.sphere = makeSphere(gl);
-
-	// Load an image to use. Returns a WebGLTexture object
-	boxTexture = loadImageTexture(gl, artwork);
-	sphereTexture = loadImageTexture(gl, artwork);
-
-	// Create some matrices to use later and save their locations in the shaders
-	g.mvMatrix = new J3DIMatrix4();
-	g.u_normalMatrixLoc = gl.getUniformLocation(program, "u_normalMatrix");
-	g.normalMatrix = new J3DIMatrix4();
-	g.u_modelViewProjMatrixLoc = gl.getUniformLocation(program, "u_modelViewProjMatrix");
-	g.mvpMatrix = new J3DIMatrix4();
-
-	// Enable all of the vertex attribute arrays.
-	gl.enableVertexAttribArray(0);
-	gl.enableVertexAttribArray(1);
-	gl.enableVertexAttribArray(2);
-
-	// Set up all the vertex attributes for vertices, normals and texCoords
-	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.vertexObject);
-	gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.normalObject);
-	gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-
-	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.texCoordObject);
-	gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
-
-	// Bind the index array
-	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.box.indexObject);
-
-	return gl;
-}
-
-var requestId;
-
-/**
- * Resets the lookat, perspective and canvas.
- */
-function reshape(gl) {
-	// change the size of the canvas's backing store to match the size it is displayed.
-	var canvas = document.getElementById(canvasid);
-
-	if (canvas.clientWidth == canvas.width && canvas.clientHeight == canvas.height)
-		return;
-
-	canvas.width = canvas.clientWidth;
-	canvas.height = canvas.clientHeight;
-
-	// Set the viewport and projection matrix for the scene
-	gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
-	g.perspectiveMatrix = new J3DIMatrix4();
-	g.perspectiveMatrix.perspective(30, canvas.clientWidth / canvas.clientHeight, 1, 10000);
-	g.perspectiveMatrix.lookat(0, 0, 7, 0, 0, 0, 0, 1, 0);
-}
-
-function drawPicture(gl) {
-	// Make sure the canvas is sized correctly.
-	reshape(gl);
-
-	// Clear the canvas
-	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 	// Make a model/view matrix.
-	g.mvMatrix.makeIdentity();
-	g.mvMatrix.rotate(20, 1, 0, 0);
-	g.mvMatrix.rotate(currentSpin, 0, 1, 0);
-	g.mvMatrix.rotate(currentTilt, 1, 0, 0);
+	this.mvMatrix.makeIdentity();
+	this.mvMatrix.rotate(20, 1, 0, 0);
+	this.mvMatrix.rotate(currentSpin, 0, 1, 0);
+	this.mvMatrix.rotate(currentTilt, 1, 0, 0);
 
 	// Construct the normal matrix from the model-view matrix and pass it in
-	g.normalMatrix.load(g.mvMatrix);
-	g.normalMatrix.invert();
-	g.normalMatrix.transpose();
-	g.normalMatrix.setUniform(gl, g.u_normalMatrixLoc, false);
+	this.normalMatrix.load(g.mvMatrix);
+	this.normalMatrix.invert();
+	this.normalMatrix.transpose();
+	this.normalMatrix.setUniform(gl, g.u_normalMatrixLoc, false);
 
 	// Construct the model-view * projection matrix and pass it in
-	g.mvpMatrix.load(g.perspectiveMatrix);
-	g.mvpMatrix.multiply(g.mvMatrix);
-	g.mvpMatrix.setUniform(gl, g.u_modelViewProjMatrixLoc, false);
+	this.mvpMatrix.load(g.perspectiveMatrix);
+	this.mvpMatrix.multiply(g.mvMatrix);
+	this.mvpMatrix.setUniform(gl, g.u_modelViewProjMatrixLoc, false);
 
 	// Bind the texture to use
 	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
 
 	// Draw the cube
 	gl.drawElements(gl.TRIANGLES, g.box.numIndices, gl.UNSIGNED_BYTE, 0);
-
-	// Show the framerate
-	framerate.snapshot();
 
 	//Get the angle of the dangle
 	if (directionSpin) {
@@ -233,23 +139,72 @@ function drawPicture(gl) {
 	} else if (currentTilt < -360) {
 		currentTilt += 360;
 	}
+};
+
+function init(canvasid) {
+	// Initialize
+	var gl = initWebGL(canvasid);
+	if (!gl) {
+		return;
+	}
+	return gl;
+}
+
+var requestId;
+
+/**
+ * Resets the lookat, perspective and canvas.
+ */
+function reshape(gl, canvasid) {
+	
+	// change the size of the canvas's backing store to match the size it is displayed.
+	var canvas = document.getElementById(canvasid);
+
+	if (canvas.clientWidth == canvas.width && canvas.clientHeight == canvas.height)
+		return;
+
+	canvas.width = canvas.clientWidth;
+	canvas.height = canvas.clientHeight;
+
+	// Set the viewport and projection matrix for the scene
+	gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+	for ( i = 0; i < drawables.length; i++) {
+		drawable[i].perspectiveMatrix = new J3DIMatrix4();
+		drawable[i].perspectiveMatrix.perspective(30, canvas.clientWidth / canvas.clientHeight, 1, 10000);
+		drawable[i].perspectiveMatrix.lookat(0, 0, 7, 0, 0, 0, 0, 1, 0);
+	}
+}
+
+function drawPicture(gl, canvasid) {
+	// Make sure the canvas is sized correctly.
+	reshape(gl, canvasid);
+
+	// Clear the canvas
+	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+	// Show the framerate
+	framerate.snapshot();
+
+	for ( i = 0; i < drawables.length; i++) {
+		drawables[i].draw(gl);
+	}
 }
 
 /**
  * The launch point for our visualizer.
  * Pass in the canvas id.
  */
-function start(canvas) {
+function start(canvasName) {
+	
+	canvas = document.getElementById(canvasName);
 
-	canvasid = canvas;
-	var c = document.getElementById(canvasid);
+	registerElementMouseDrag(canvas);
 
-	registerElementMouseDrag(c);
+	canvas.addEventListener('webglcontextlost', handleContextLost, false);
+	canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
 
-	c.addEventListener('webglcontextlost', handleContextLost, false);
-	c.addEventListener('webglcontextrestored', handleContextRestored, false);
-
-	var gl = init();
+	var gl = init(canvasName);
 
 	if (!gl) {
 		return;
@@ -258,8 +213,8 @@ function start(canvas) {
 	framerate = new Framerate("framerate");
 
 	var f = function() {
-		drawPicture(gl);
-		requestId = window.requestAnimFrame(f, c);
+		drawPicture(gl, canvasName);
+		requestId = window.requestAnimFrame(f, canvas);
 	};
 
 	f();
@@ -375,6 +330,10 @@ function getPosition(element) {
 		x : xPosition,
 		y : yPosition
 	};
+}
+
+function addShape(shapeType, artworkUrl){
+	drawables.push(drawable(shapeType, artworkUrl));
 }
 
 /**

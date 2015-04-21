@@ -1,31 +1,6 @@
 
 <!DOCTYPE html>
-<!--
-/*
- * Copyright (C) 2009 Apple Inc. All Rights Reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
- * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
- -->
+
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -54,7 +29,7 @@ body, html {
 <script type="text/javascript" src="webgl-debug.js"></script>
 <script type="text/javascript" src="J3DI.js"> </script>
 <script type="text/javascript" src="J3DIMath.js"> </script>
-<script type="text/javascript" src="app.js"> </script>
+<script type="text/javascript" src="phoenixVisualizer.js"> </script>
 
 
 <script id="vshader" type="x-shader/x-vertex">
@@ -69,8 +44,7 @@ body, html {
     varying float v_Dot;
     varying vec2 v_texCoord;
 
-    void main()
-    {
+    void main() {
         gl_Position = u_modelViewProjMatrix * vPosition;
         v_texCoord = vTexCoord.st;
         vec4 transNormal = u_normalMatrix * vec4(vNormal, 1);
@@ -86,8 +60,7 @@ body, html {
     varying float v_Dot;
     varying vec2 v_texCoord;
 
-    void main()
-    {
+    void main() {
         vec2 texCoord = vec2(v_texCoord.s, 1.0 - v_texCoord.t);
         vec4 color = texture2D(sampler2d, texCoord);
         color += vec4(0.1, 0.1, 0.1, 1);
@@ -102,10 +75,12 @@ body, html {
 </style>
 </head>
 
-<body onload="start()">
-<canvas id="example" draggable="true">
+<body onload="start('example')">
+	
+<canvas id="example">
     If you're seeing this your web browser doesn't support the &lt;canvas>&gt; element. Ouch!
 </canvas>
+
 <div id="framerate"></div>
 </body>
 

@@ -538,7 +538,8 @@ function loadImageTexture(ctx, url)
     ctx.texImage2D(ctx.TEXTURE_2D, 0, ctx.RGBA, 1, 1, 0, ctx.RGBA, ctx.UNSIGNED_BYTE, null);
     var image = new Image();
     g_loadingImages.push(image);
-    image.onload = function() { doLoadImageTexture(ctx, image, texture) }
+    image.onload = function() { doLoadImageTexture(ctx, image, texture); };
+    image.crossOrigin = url;
     image.src = url;
     return texture;
 }

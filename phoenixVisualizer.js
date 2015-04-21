@@ -1,10 +1,25 @@
 var g = {};
+var artwork = '';
+var images = [];
+var canvasid = '';
+var directionSpin = true;
+var directionTilt = true;
+var currentSpin = 0;
+var currentTilt = 0;
+var incTilt = 0.1;
+var incSpin = 0.5;
 
-function init() {
+function init(artworkurl) {
+
+	if (artworkurl) {
+		artwork = artworkurl;
+	} else {
+		//Set the default here
+		artwork = "resources/image.jpeg";
+	}
+
 	// Initialize
-	var gl = initWebGL(
-	// The id of the Canvas Element
-	"example");
+	var gl = initWebGL("example");
 	if (!gl) {
 		return;
 	}
@@ -28,7 +43,7 @@ function init() {
 	g.box = makeBox(gl);
 
 	// Load an image to use. Returns a WebGLTexture object
-	spiritTexture = loadImageTexture(gl, "resources/image.jpeg");
+	spiritTexture = loadImageTexture(gl, artwork);
 
 	// Create some matrices to use later and save their locations in the shaders
 	g.mvMatrix = new J3DIMatrix4();
@@ -62,7 +77,7 @@ var requestId;
 
 function reshape(gl) {
 	// change the size of the canvas's backing store to match the size it is displayed.
-	var canvas = document.getElementById('example');
+	var canvas = document.getElementById(canvasid);
 	if (canvas.clientWidth == canvas.width && canvas.clientHeight == canvas.height)
 		return;
 
@@ -86,7 +101,9 @@ function drawPicture(gl) {
 	// Make a model/view matrix.
 	g.mvMatrix.makeIdentity();
 	g.mvMatrix.rotate(20, 1, 0, 0);
-	g.mvMatrix.rotate(currentAngle, 0, 1, 0);
+	g.mvMatrix.rotate(currentSpin, 0, 1, 0);
+	g.mvMatrix.rotate(currentTilt, 1, 0, 0);
+
 
 	// Construct the normal matrix from the model-view matrix and pass it in
 	g.normalMatrix.load(g.mvMatrix);
@@ -108,13 +125,44 @@ function drawPicture(gl) {
 	// Show the framerate
 	framerate.snapshot();
 
-	currentAngle += incAngle;
-	if (currentAngle > 360)
-		currentAngle -= 360;
+	//Get the angle of the dangle
+	if (directionSpin) {
+		currentSpin += incSpin;
+	} else {
+		currentSpin -= incSpin;
+	}
+
+	if (directionTilt) {
+		currentTilt += incTilt;
+	} else {
+		currentTilt -= incTilt;
+	}
+
+	//Reset if the dangle has too much angle
+	if (currentSpin > 360) {
+		currentSpin -= 360;
+	} else if (currentSpin < -360) {
+		currentSpin += 360;
+	}
+
+	//Reset if the dangle has too much angle
+	if (currentTilt > 360) {
+		currentTilt -= 360;
+	} else if (currentTilt < -360) {
+		currentTilt += 360;
+	}
 }
 
-function start() {
-	var c = document.getElementById("example");
+/**
+ * The launch point for our visualizer.
+ * Pass in the canvas id.
+ */
+function start(canvas) {
+
+	canvasid = canvas;
+	var c = document.getElementById(canvasid);
+
+	registerElementMouseDrag(document.getElementById("framerate"));
 
 	registerElementMouseDrag(c);
 
@@ -122,17 +170,18 @@ function start() {
 	c.addEventListener('webglcontextrestored', handleContextRestored, false);
 
 	var gl = init();
+
 	if (!gl) {
 		return;
 	}
 
-	currentAngle = 0;
-	incAngle = 0.5;
 	framerate = new Framerate("framerate");
+
 	var f = function() {
 		drawPicture(gl);
 		requestId = window.requestAnimFrame(f, c);
 	};
+
 	f();
 
 	function handleContextLost(e) {
@@ -149,61 +198,121 @@ function start() {
 		f();
 	}
 
-	var arrayOfEvents = [];
+}
 
-	function registerElementMouseDrag(element) {
-		window.flag = 0;
+function registerElementMouseDrag(element) {
 
-		element.addEventListener("mousedown", function(e) {
-			arrayOfEvents.push(e);
-			console.log("mousedown");
-			window.flag = 0;
-		}, false);
+	flag = 0;
 
-		element.addEventListener("mousemove", function(e) {
-			arrayOfEvents.push(e);
-			window.flag = 1;
-			console.log("mousemove");
-		}, false);
-
-		element.addEventListener("mouseup", function(e) {
-			arrayOfEvents.push(e);
-
-			console.log("mouseup = " + arrayOfEvents.toString());
-
-			if (window.flag === 0) {
-				console.log("click");
-			} else if (window.flag === 1) {
-				console.log("drag");
-				getClickPosition(e);
-			}
-
-			arrayOfEvents = [];
-		}, false);
-
-	}
-
-	function getClickPosition(e) {
-		var parentPosition = getPosition(e.currentTarget);
-		var xPosition = e.clientX - parentPosition.x;
-		var yPosition = e.clientY - parentPosition.y;
-
-		currentAngle += xPosition;
-	}
-
-	function getPosition(element) {
-		var xPosition = 0;
-		var yPosition = 0;
-
-		while (element) {
-			xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
-			yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
-			element = element.offsetParent;
+	element.addEventListener("mousemove", function(e) {
+		if (flag === 1) {
+			getClickPosition(e);
 		}
-		return {
-			x : xPosition,
-			y : yPosition
-		};
+	}, false);
+	element.addEventListener("mousedown", function(e) {
+		flag = 1;
+		xPrevPos = 0;
+		yPrevPos = 0;
+	}, false);
+	element.addEventListener("mouseup", function(e) {
+		flag = 0;
+	}, false);
+	element.addEventListener("mouseout", function(e) {
+		flag = 0;
+	}, false);
+}
+
+var xPrevPos = 0;
+var yPrevPos = 0;
+
+/**
+ * Get's the current click position and moves the angle.
+ */
+function getClickPosition(e) {
+
+	var parentPosition = getPosition(e.currentTarget);
+	var xPosition = e.clientX - parentPosition.x;
+	var yPosition = e.clientY - parentPosition.y;
+	var xHolder = xPosition;
+	var yHolder = yPosition;
+
+	if (xPrevPos === 0) {
+		xPrevPos = xPosition;
 	}
 
+	if (yPrevPos === 0) {
+		yPrevPos = yPosition;
+	}
+
+	//Get the right way the drag was
+	xPosition -= xPrevPos;
+	yPosition -= yPrevPos;
+
+	//Change direction if we swipe
+	if (xPosition > 0) {
+		directionSpin = true;
+	} else {
+		directionSpin = false;
+	}
+
+	//Change direction if we swipe
+	if (yPosition > 0) {
+		directionTilt = true;
+	} else {
+		directionTilt = false;
+	}
+
+	//Get some of the edge off
+	xPosition *= .10;
+	yPosition *= .10;
+
+	//Change the angle of the dangle.
+	currentSpin += xPosition;
+	currentTilt += yPosition;
+
+	//Set up for next round
+	xPrevPos = xHolder;
+	yPrevPos = yHolder;
+}
+
+/**
+ * Traverses the element tree to figure out the location of the click.
+ *
+ */
+function getPosition(element) {
+	var xPosition = 0;
+	var yPosition = 0;
+
+	while (element) {
+		xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
+		yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
+		element = element.offsetParent;
+	}
+	return {
+		x : xPosition,
+		y : yPosition
+	};
+}
+
+/**
+ * Set the artwork Url for the current track.
+ */
+function setArtworkUrl(artworkurl) {
+	init(artworkurl);
+}
+
+/**
+ * This is not needed.
+ * The LoadImageTexture is exactly the same as this.
+ *
+ * @param {Object} url
+ */
+function loadCrossOriginImage(url) {
+	if (!url) {
+		return;
+	}
+	var img = new Image();
+	img.crossOrigin = url;
+	img.src = url;
+	images.push(img);
 }

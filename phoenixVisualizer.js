@@ -9,6 +9,83 @@ var currentTilt = 0;
 var incTilt = 0.1;
 var incSpin = 0.5;
 
+/**
+ * Drawable to draw to screen.
+ */
+function drawable() {
+	this.shape = {};
+	this.artworkUrl = '';
+	this.canvasid = '';
+	this.directionSpin = true;
+	this.directionTilt = true;
+	this.currentSpin = 0;
+	this.currentTilt = 0;
+	this.incTilt = 0.1;
+	this.incSpin = 0.5;
+	this.texture = 0;
+	this.mvMatrix = new J3DIMatrix4();
+	this.u_normalMatrixLoc = 0;
+	this.normalMatrix = new J3DIMatrix4();
+	this.u_modelViewProjMatrixLoc = 0;
+	this.mvpMatrix = new J3DIMatrix4(); 
+	
+	
+	// Create a box. On return 'gl' contains a 'box' property with
+	// the BufferObjects containing the arrays for vertices,
+	// normals, texture coords, and indices.
+	this.shape = makeBox(gl);
+
+	// Load an image to use. Returns a WebGLTexture object
+	this.texture = loadImageTexture(gl, this.artworkUrl);
+};
+
+/**
+ * Draw function will draw the buffers to screen 
+ */
+drawable.prototype.draw = function(){
+	
+	/**
+	 * Set up the program, shaders, locs etc.
+	 */
+	
+	var program = simpleSetup(gl,
+	// The ids of the vertex and fragment shaders
+	"vshader", "fshader",
+	// The vertex attribute names used by the shaders.
+	// The order they appear here corresponds to their index
+	// used later.
+	["vNormal", "vColor", "vPosition"],
+	// The clear color and depth values
+	[0, 0, 0.5, 1], 10000);
+
+	// Set some uniform variables for the shaders
+	gl.uniform3f(gl.getUniformLocation(program, "lightDir"), 0, 0, 1);
+	gl.uniform1i(gl.getUniformLocation(program, "sampler2d"), 0);
+
+	// Get shader location
+	this.u_normalMatrixLoc = gl.getUniformLocation(program, "u_normalMatrix");
+	this.u_modelViewProjMatrixLoc = gl.getUniformLocation(program, "u_modelViewProjMatrix");
+
+	// Enable all of the vertex attribute arrays.
+	gl.enableVertexAttribArray(0);
+	gl.enableVertexAttribArray(1);
+	gl.enableVertexAttribArray(2);
+
+	// Set up all the vertex attributes for vertices, normals and texCoords
+	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.vertexObject);
+	gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.normalObject);
+	gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.texCoordObject);
+	gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+
+	// Bind the index array
+	gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.shape.indexObject);
+};
+
+
 function init(artworkurl) {
 
 	if (artworkurl) {
@@ -41,9 +118,11 @@ function init(artworkurl) {
 	// the BufferObjects containing the arrays for vertices,
 	// normals, texture coords, and indices.
 	g.box = makeBox(gl);
+	g.sphere = makeSphere(gl);
 
 	// Load an image to use. Returns a WebGLTexture object
-	spiritTexture = loadImageTexture(gl, artwork);
+	boxTexture = loadImageTexture(gl, artwork);
+	sphereTexture = loadImageTexture(gl, artwork);
 
 	// Create some matrices to use later and save their locations in the shaders
 	g.mvMatrix = new J3DIMatrix4();
@@ -75,9 +154,13 @@ function init(artworkurl) {
 
 var requestId;
 
+/**
+ * Resets the lookat, perspective and canvas.
+ */
 function reshape(gl) {
 	// change the size of the canvas's backing store to match the size it is displayed.
 	var canvas = document.getElementById(canvasid);
+
 	if (canvas.clientWidth == canvas.width && canvas.clientHeight == canvas.height)
 		return;
 
@@ -104,7 +187,6 @@ function drawPicture(gl) {
 	g.mvMatrix.rotate(currentSpin, 0, 1, 0);
 	g.mvMatrix.rotate(currentTilt, 1, 0, 0);
 
-
 	// Construct the normal matrix from the model-view matrix and pass it in
 	g.normalMatrix.load(g.mvMatrix);
 	g.normalMatrix.invert();
@@ -117,7 +199,7 @@ function drawPicture(gl) {
 	g.mvpMatrix.setUniform(gl, g.u_modelViewProjMatrixLoc, false);
 
 	// Bind the texture to use
-	gl.bindTexture(gl.TEXTURE_2D, spiritTexture);
+	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
 
 	// Draw the cube
 	gl.drawElements(gl.TRIANGLES, g.box.numIndices, gl.UNSIGNED_BYTE, 0);
@@ -162,8 +244,6 @@ function start(canvas) {
 	canvasid = canvas;
 	var c = document.getElementById(canvasid);
 
-	registerElementMouseDrag(document.getElementById("framerate"));
-
 	registerElementMouseDrag(c);
 
 	c.addEventListener('webglcontextlost', handleContextLost, false);
@@ -200,6 +280,9 @@ function start(canvas) {
 
 }
 
+/**
+ * Register an element for our mouse move listeners.
+ */
 function registerElementMouseDrag(element) {
 
 	flag = 0;

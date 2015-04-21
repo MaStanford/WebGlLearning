@@ -1,4 +1,3 @@
-var canvasid = '';
 var drawables = [];
 
 /**
@@ -25,6 +24,9 @@ function drawable(shape, artworkUrl) {
 	this.normalMatrix = new J3DIMatrix4();
 	this.u_modelViewProjMatrixLoc = 0;
 	this.mvpMatrix = new J3DIMatrix4();
+	this.perspectiveMatrix = new J3DIMatrix4();
+	this.perspectiveMatrix.perspective(30, canvas.clientWidth / canvas.clientHeight, 1, 10000);
+	this.perspectiveMatrix.lookat(0, 0, 7, 0, 0, 0, 0, 1, 0);
 
 	// Create a shape. On return 'gl' contains a 'box' property with
 	// the BufferObjects containing the arrays for vertices,
@@ -78,13 +80,13 @@ drawable.prototype.draw = function() {
 	gl.enableVertexAttribArray(2);
 
 	// Set up all the vertex attributes for vertices, normals and texCoords
-	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.vertexObject);
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.shape.vertexObject);
 	gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0);
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.normalObject);
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.shape.normalObject);
 	gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
 
-	gl.bindBuffer(gl.ARRAY_BUFFER, g.box.texCoordObject);
+	gl.bindBuffer(gl.ARRAY_BUFFER, this.shape.texCoordObject);
 	gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
 
 	// Bind the index array
@@ -93,51 +95,51 @@ drawable.prototype.draw = function() {
 	// Make a model/view matrix.
 	this.mvMatrix.makeIdentity();
 	this.mvMatrix.rotate(20, 1, 0, 0);
-	this.mvMatrix.rotate(currentSpin, 0, 1, 0);
-	this.mvMatrix.rotate(currentTilt, 1, 0, 0);
+	this.mvMatrix.rotate(this.currentSpin, 0, 1, 0);
+	this.mvMatrix.rotate(this.currentTilt, 1, 0, 0);
 
 	// Construct the normal matrix from the model-view matrix and pass it in
-	this.normalMatrix.load(g.mvMatrix);
+	this.normalMatrix.load(this.mvMatrix);
 	this.normalMatrix.invert();
 	this.normalMatrix.transpose();
-	this.normalMatrix.setUniform(gl, g.u_normalMatrixLoc, false);
+	this.normalMatrix.setUniform(gl, this.u_normalMatrixLoc, false);
 
 	// Construct the model-view * projection matrix and pass it in
-	this.mvpMatrix.load(g.perspectiveMatrix);
-	this.mvpMatrix.multiply(g.mvMatrix);
-	this.mvpMatrix.setUniform(gl, g.u_modelViewProjMatrixLoc, false);
+	this.mvpMatrix.load(this.perspectiveMatrix);
+	this.mvpMatrix.multiply(this.mvMatrix);
+	this.mvpMatrix.setUniform(gl, this.u_modelViewProjMatrixLoc, false);
 
 	// Bind the texture to use
-	gl.bindTexture(gl.TEXTURE_2D, boxTexture);
+	gl.bindTexture(gl.TEXTURE_2D, this.texture);
 
 	// Draw the cube
-	gl.drawElements(gl.TRIANGLES, g.box.numIndices, gl.UNSIGNED_BYTE, 0);
+	gl.drawElements(gl.TRIANGLES, this.shape.numIndices, gl.UNSIGNED_BYTE, 0);
 
 	//Get the angle of the dangle
-	if (directionSpin) {
-		currentSpin += incSpin;
+	if (this.directionSpin) {
+		this.currentSpin += this.incSpin;
 	} else {
-		currentSpin -= incSpin;
+		this.currentSpin -= this.incSpin;
 	}
 
-	if (directionTilt) {
-		currentTilt += incTilt;
+	if (this.directionTilt) {
+		this.currentTilt += this.incTilt;
 	} else {
-		currentTilt -= incTilt;
+		this.currentTilt -= this.incTilt;
 	}
 
 	//Reset if the dangle has too much angle
-	if (currentSpin > 360) {
-		currentSpin -= 360;
-	} else if (currentSpin < -360) {
-		currentSpin += 360;
+	if (this.currentSpin > 360) {
+		this.currentSpin -= 360;
+	} else if (this.currentSpin < -360) {
+		this.currentSpin += 360;
 	}
 
 	//Reset if the dangle has too much angle
-	if (currentTilt > 360) {
-		currentTilt -= 360;
-	} else if (currentTilt < -360) {
-		currentTilt += 360;
+	if (this.currentTilt > 360) {
+		this.currentTilt -= 360;
+	} else if (this.currentTilt < -360) {
+		this.currentTilt += 360;
 	}
 };
 
@@ -170,13 +172,14 @@ function reshape(gl, canvasid) {
 	gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
 	for ( i = 0; i < drawables.length; i++) {
-		drawable[i].perspectiveMatrix = new J3DIMatrix4();
-		drawable[i].perspectiveMatrix.perspective(30, canvas.clientWidth / canvas.clientHeight, 1, 10000);
-		drawable[i].perspectiveMatrix.lookat(0, 0, 7, 0, 0, 0, 0, 1, 0);
+		drawables[i].perspectiveMatrix = new J3DIMatrix4();
+		drawables[i].perspectiveMatrix.perspective(30, canvas.clientWidth / canvas.clientHeight, 1, 10000);
+		drawables[i].perspectiveMatrix.lookat(0, 0, 7, 0, 0, 0, 0, 1, 0);
 	}
 }
 
 function drawPicture(gl, canvasid) {
+	
 	// Make sure the canvas is sized correctly.
 	reshape(gl, canvasid);
 
@@ -305,8 +308,8 @@ function getClickPosition(e) {
 	yPosition *= .10;
 
 	//Change the angle of the dangle.
-	currentSpin += xPosition;
-	currentTilt += yPosition;
+	drawables[0].currentSpin += xPosition;
+	drawables[0].currentTilt += yPosition;
 
 	//Set up for next round
 	xPrevPos = xHolder;
@@ -333,14 +336,7 @@ function getPosition(element) {
 }
 
 function addShape(shapeType, artworkUrl){
-	drawables.push(drawable(shapeType, artworkUrl));
-}
-
-/**
- * Set the artwork Url for the current track.
- */
-function setArtworkUrl(artworkurl) {
-	init(artworkurl);
+	drawables.push(new drawable(shapeType, artworkUrl));
 }
 
 /**

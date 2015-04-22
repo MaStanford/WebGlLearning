@@ -5,21 +5,26 @@ var drawables = [];
  */
 function drawable(shape, artworkUrl) {
 	this.shape = {};
-	
-	if(artworkUrl){
+
+	if (artworkUrl) {
 		this.artworkUrl = artworkUrl;
-	}else{
+	} else {
 		this.artworkUrl = "resources/image.jpeg";
 	}
+
+	this.x = Math.random() - .5;
+	this.y = Math.random() - .5;
+	this.z = Math.random() - .5;
 	this.canvasid = '';
 	this.directionSpin = true;
 	this.directionTilt = true;
 	this.currentSpin = 0;
 	this.currentTilt = 0;
-	this.incTilt = 0.1;
+	this.incTilt = 0.5;
 	this.incSpin = 0.5;
 	this.texture = 0;
 	this.mvMatrix = new J3DIMatrix4();
+	this.mvMatrix.translate(this.x, this.y, 0);
 	this.u_normalMatrixLoc = 0;
 	this.normalMatrix = new J3DIMatrix4();
 	this.u_modelViewProjMatrixLoc = 0;
@@ -94,9 +99,10 @@ drawable.prototype.draw = function() {
 
 	// Make a model/view matrix.
 	this.mvMatrix.makeIdentity();
-	this.mvMatrix.rotate(20, 1, 0, 0);
-	this.mvMatrix.rotate(this.currentSpin, 0, 1, 0);
-	this.mvMatrix.rotate(this.currentTilt, 1, 0, 0);
+	//this.mvMatrix.rotate(20, 0, 0, 0);
+	this.mvMatrix.rotate(this.currentSpin, 0, .5, 0);
+	this.mvMatrix.rotate(this.currentTilt, .5, 0, 0);
+	this.mvMatrix.translate(this.x + this.x, this.y + this.y, this.z + this.z);
 
 	// Construct the normal matrix from the model-view matrix and pass it in
 	this.normalMatrix.load(this.mvMatrix);
@@ -137,9 +143,9 @@ drawable.prototype.draw = function() {
 
 	//Reset if the dangle has too much angle
 	if (this.currentTilt > 360) {
-		this.currentTilt -= 360;
-	} else if (this.currentTilt < -360) {
 		this.currentTilt += 360;
+	} else if (this.currentTilt < -360) {
+		this.currentTilt -= 360;
 	}
 };
 
@@ -158,7 +164,7 @@ var requestId;
  * Resets the lookat, perspective and canvas.
  */
 function reshape(gl, canvasid) {
-	
+
 	// change the size of the canvas's backing store to match the size it is displayed.
 	var canvas = document.getElementById(canvasid);
 
@@ -179,7 +185,17 @@ function reshape(gl, canvasid) {
 }
 
 function drawPicture(gl, canvasid) {
-	
+
+	var program = simpleSetup(gl,
+	// The ids of the vertex and fragment shaders
+	"vshader", "fshader",
+	// The vertex attribute names used by the shaders.
+	// The order they appear here corresponds to their index
+	// used later.
+	["vNormal", "vColor", "vPosition"],
+	// The clear color and depth values
+	[0, 0, 0.5, 1], 10000);
+
 	// Make sure the canvas is sized correctly.
 	reshape(gl, canvasid);
 
@@ -199,7 +215,7 @@ function drawPicture(gl, canvasid) {
  * Pass in the canvas id.
  */
 function start(canvasName) {
-	
+
 	canvas = document.getElementById(canvasName);
 
 	registerElementMouseDrag(canvas);
@@ -291,16 +307,16 @@ function getClickPosition(e) {
 
 	//Change direction if we swipe
 	if (xPosition > 0) {
-		directionSpin = true;
+		drawables[0].directionSpin = true;
 	} else {
-		directionSpin = false;
+		drawables[0].directionSpin = false;
 	}
 
 	//Change direction if we swipe
 	if (yPosition > 0) {
-		directionTilt = true;
+		drawables[0].directionTilt = true;
 	} else {
-		directionTilt = false;
+		drawables[0].directionTilt = false;
 	}
 
 	//Get some of the edge off
@@ -335,7 +351,7 @@ function getPosition(element) {
 	};
 }
 
-function addShape(shapeType, artworkUrl){
+function addShape(shapeType, artworkUrl) {
 	drawables.push(new drawable(shapeType, artworkUrl));
 }
 

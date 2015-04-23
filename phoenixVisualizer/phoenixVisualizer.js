@@ -126,7 +126,7 @@ drawable.prototype.draw = function(gl, average) {
 	this.mvMatrix.rotate(20, 0, 0, 0);
 	this.mvMatrix.rotate(this.currentSpin, 0, .5, 0);
 	this.mvMatrix.rotate(this.currentTilt, .5, 0, 0);
-	this.mvMatrix.scale(average + .5, average + .5, average + .5);
+	this.mvMatrix.scale(average/2 + 1, average/2 + 1, average/2 + 1);
 	this.mvMatrix.translate(this.x + this.x, this.y + this.y, this.z + this.z);
 
 	// Construct the normal matrix from the model-view matrix and pass it in
@@ -138,6 +138,7 @@ drawable.prototype.draw = function(gl, average) {
 	// Construct the model-view * projection matrix and pass it in
 	this.mvpMatrix.load(this.perspectiveMatrix);
 	this.mvpMatrix.multiply(this.mvMatrix);
+	this.mvpMatrix.scale(.5, .5, .5);
 	this.mvpMatrix.setUniform(gl, this.u_modelViewProjMatrixLoc, false);
 
 	// Bind the texture to use
@@ -320,11 +321,11 @@ function initAudio() {
 
 function initAnalyser() {
 	var analyser = audioCtx.createAnalyser();
-	analyser.ftt = 600;
+	analyser.ftt = 200;
 	analyser.fftSize = 2048;
 	analyser.smoothingTimeConstant = 0;
-	analyser.maxDecibels = 200;
-	analyser.minDecibels = -30;
+	analyser.maxDecibels = 0;
+	analyser.minDecibels = -80;
 	return analyser;
 }
 

@@ -21,6 +21,11 @@ function loadScript(urlList, callback) {
 	}
 }
 
+var audioCtx = {};
+var analyser = {};
+var audio = {};
+var url = '';
+var source = {};
 var drawables = [];
 
 /**
@@ -78,11 +83,7 @@ function drawable(shape, artworkUrl) {
 /**
  * Draw function will draw the buffers to screen
  */
-drawable.prototype.draw = function() {
-
-	/**
-	 * Set up the program, shaders, locs etc.
-	 */
+drawable.prototype.draw = function(gl, average) {
 
 	var program = simpleSetup(gl,
 	// The ids of the vertex and fragment shaders
@@ -122,9 +123,10 @@ drawable.prototype.draw = function() {
 
 	// Make a model/view matrix.
 	this.mvMatrix.makeIdentity();
-	//this.mvMatrix.rotate(20, 0, 0, 0);
+	this.mvMatrix.rotate(20, 0, 0, 0);
 	this.mvMatrix.rotate(this.currentSpin, 0, .5, 0);
 	this.mvMatrix.rotate(this.currentTilt, .5, 0, 0);
+	this.mvMatrix.scale(average + .5, average + .5, average + .5);
 	this.mvMatrix.translate(this.x + this.x, this.y + this.y, this.z + this.z);
 
 	// Construct the normal matrix from the model-view matrix and pass it in
@@ -172,12 +174,76 @@ drawable.prototype.draw = function() {
 	}
 };
 
-function init(canvasid) {
+/**
+ * The launch point for our visualizer.
+ * Pass in the canvas id.
+ */
+function start(canvasName) {
+
+	//Set up audio context and source and anylizer node etc
+	initAudio();
+
+	canvas = document.getElementById(canvasName);
+
+	registerElementMouseDrag(canvas);
+
+	canvas.addEventListener('webglcontextlost', handleContextLost, false);
+	canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+
+	var gl = initCanvas(canvasName);
+
+	if (!gl) {
+		return;
+	}
+
+	framerate = new Framerate("framerate");
+
+	var draw = function() {
+		drawPicture(gl, canvasName);
+		requestId = window.requestAnimFrame(draw, canvas);
+	};
+
+	draw();
+
+	function handleContextLost(e) {
+		e.preventDefault();
+		clearLoadingImages();
+		if (requestId !== undefined) {
+			window.cancelAnimFrame(requestId);
+			requestId = undefined;
+		}
+	}
+
+	function handleContextRestored() {
+		initCanvas(canvasName);
+		draw();
+	}
+
+}
+
+/**
+ * Sets up the webgl context
+ */
+function initCanvas(canvasid) {
 	// Initialize
 	var gl = initWebGL(canvasid);
 	if (!gl) {
 		return;
 	}
+
+	var program = simpleSetup(gl,
+	// The ids of the vertex and fragment shaders
+	"vshader", "fshader",
+	// The vertex attribute names used by the shaders.
+	// The order they appear here corresponds to their index
+	// used later.
+	["vNormal", "vColor", "vPosition"],
+	// The clear color and depth values
+	[0, 0, 0.5, 1], 10000);
+
+	// Make sure the canvas is sized correctly.
+	reshape(gl, canvasid);
+
 	return gl;
 }
 
@@ -207,20 +273,27 @@ function reshape(gl, canvasid) {
 	}
 }
 
+/**
+ * Contains the loop to grab audio data and draw shapes.
+ *
+ * This should be called by the animation callback.
+ */
 function drawPicture(gl, canvasid) {
 
-	var program = simpleSetup(gl,
-	// The ids of the vertex and fragment shaders
-	"vshader", "fshader",
-	// The vertex attribute names used by the shaders.
-	// The order they appear here corresponds to their index
-	// used later.
-	["vNormal", "vColor", "vPosition"],
-	// The clear color and depth values
-	[0, 0, 0.5, 1], 10000);
+	//Get the audio data
+	var bufferLength = analyser.frequencyBinCount;
 
-	// Make sure the canvas is sized correctly.
-	reshape(gl, canvasid);
+	var dataArray = new Float32Array(bufferLength);
+
+	analyser.getFloatTimeDomainData(dataArray);
+
+	var total = 0;
+
+	for ( i = 0; i < bufferLength; i++) {
+		total += Math.abs(dataArray[i]);
+	}
+
+	var average = total / bufferLength;
 
 	// Clear the canvas
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -229,52 +302,53 @@ function drawPicture(gl, canvasid) {
 	framerate.snapshot();
 
 	for ( i = 0; i < drawables.length; i++) {
-		drawables[i].draw(gl);
+		drawables[i].draw(gl, average);
 	}
 }
 
 /**
- * The launch point for our visualizer.
- * Pass in the canvas id.
+ * Gets the refernces to the audio context and creates an audio object and analyser.
  */
-function start(canvasName) {
+function initAudio() {
+	audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+	analyser = initAnalyser();
+	audio = new Audio();
+	source = audioCtx.createMediaElementSource(audio);
+	source.connect(analyser);
+	analyser.connect(audioCtx.destination);
+}
 
-	canvas = document.getElementById(canvasName);
+function initAnalyser() {
+	var analyser = audioCtx.createAnalyser();
+	analyser.ftt = 600;
+	analyser.fftSize = 2048;
+	analyser.smoothingTimeConstant = 0;
+	analyser.maxDecibels = 200;
+	analyser.minDecibels = -30;
+	return analyser;
+}
 
-	registerElementMouseDrag(canvas);
+/**
+ * Changes the currently playing track
+ * @param {Object} newUrl
+ */
+function changeTrack(newUrl) {
+	url = newUrl;
+	audio.src = url;
+}
 
-	canvas.addEventListener('webglcontextlost', handleContextLost, false);
-	canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+/**
+ * Stops the currently playing track
+ */
+function stopTrack() {
+	source.mediaElement.stop();
+}
 
-	var gl = init(canvasName);
-
-	if (!gl) {
-		return;
-	}
-
-	framerate = new Framerate("framerate");
-
-	var f = function() {
-		drawPicture(gl, canvasName);
-		requestId = window.requestAnimFrame(f, canvas);
-	};
-
-	f();
-
-	function handleContextLost(e) {
-		e.preventDefault();
-		clearLoadingImages();
-		if (requestId !== undefined) {
-			window.cancelAnimFrame(requestId);
-			requestId = undefined;
-		}
-	}
-
-	function handleContextRestored() {
-		init();
-		f();
-	}
-
+/**
+ * Plays the track set by changeTrack
+ */
+function playTrack() {
+	source.mediaElement.play();
 }
 
 /**
@@ -374,6 +448,10 @@ function getPosition(element) {
 	};
 }
 
+/**
+ * Adds a shape to the draw list.
+ * shapetype - 0 = box 1 = sphere, artworkUrl is the texture url.
+ */
 function addShape(shapeType, artworkUrl) {
 	drawables.push(new drawable(shapeType, artworkUrl));
 }

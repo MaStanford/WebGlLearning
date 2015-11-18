@@ -313,9 +313,11 @@ function drawPicture(gl, canvasid) {
 function initAudio() {
 	audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 	analyser = initAnalyser();
-	audio = new Audio();
+	audio = document.querySelector('audio');//new Audio();
+	audio.crossOrigin = "anonymous";
 	source = audioCtx.createMediaElementSource(audio);
 	source.connect(analyser);
+	source.connect(audioCtx.createGain());
 	analyser.connect(audioCtx.destination);
 }
 
@@ -335,14 +337,14 @@ function initAnalyser() {
  */
 function changeTrack(newUrl) {
 	url = newUrl;
-	audio.src = url;
+	return audio.src = url;
 }
 
 /**
  * Stops the currently playing track
  */
 function stopTrack() {
-	source.mediaElement.stop();
+	return source.mediaElement.stop();
 }
 
 /**
@@ -350,6 +352,7 @@ function stopTrack() {
  */
 function playTrack() {
 	source.mediaElement.play();
+	return source.mediaElement;
 }
 
 /**

@@ -27,6 +27,7 @@ var audio = {};
 var url = '';
 var source = {};
 var drawables = [];
+var isAudioInit = false;
 
 /**
  * Drawable to draw to screen.
@@ -37,7 +38,7 @@ function drawable(shape, artworkUrl) {
 	if (artworkUrl) {
 		this.artworkUrl = artworkUrl;
 	} else {
-		this.artworkUrl = "resources/image.jpeg";
+		this.artworkUrl = "https://i.imgur.com/tVn635T.png";
 	}
 
 	this.x = Math.random() - .5;
@@ -181,9 +182,6 @@ drawable.prototype.draw = function(gl, average) {
  */
 function start(canvasName) {
 
-	//Set up audio context and source and anylizer node etc
-	initAudio();
-
 	canvas = document.getElementById(canvasName);
 
 	registerElementMouseDrag(canvas);
@@ -205,6 +203,8 @@ function start(canvasName) {
 	};
 
 	draw();
+
+	addShape(0, null);
 
 	function handleContextLost(e) {
 		e.preventDefault();
@@ -280,21 +280,23 @@ function reshape(gl, canvasid) {
  * This should be called by the animation callback.
  */
 function drawPicture(gl, canvasid) {
+	var average = 1.0;
+	if(isAudioInit){
+		//Get the audio data
+		var bufferLength = analyser.frequencyBinCount;
 
-	//Get the audio data
-	var bufferLength = analyser.frequencyBinCount;
+		var dataArray = new Float32Array(bufferLength);
 
-	var dataArray = new Float32Array(bufferLength);
+		analyser.getFloatTimeDomainData(dataArray);
 
-	analyser.getFloatTimeDomainData(dataArray);
+		var total = 0;
 
-	var total = 0;
+		for ( i = 0; i < bufferLength; i++) {
+			total += Math.abs(dataArray[i]);
+		}
 
-	for ( i = 0; i < bufferLength; i++) {
-		total += Math.abs(dataArray[i]);
+		average = total / bufferLength;
 	}
-
-	var average = total / bufferLength;
 
 	// Clear the canvas
 	gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -308,17 +310,22 @@ function drawPicture(gl, canvasid) {
 }
 
 /**
+ * This is called by a click on the canvas, new chrome rules say that audio cannot auto play until interaction.
  * Gets the refernces to the audio context and creates an audio object and analyser.
  */
 function initAudio() {
-	audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-	analyser = initAnalyser();
-	audio = document.querySelector('audio');//new Audio();
-	audio.crossOrigin = "anonymous";
-	source = audioCtx.createMediaElementSource(audio);
-	source.connect(analyser);
-	source.connect(audioCtx.createGain());
-	analyser.connect(audioCtx.destination);
+	if(!isAudioInit){
+		audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+		analyser = initAnalyser();
+		audio = document.querySelector('audio');//new Audio();
+		audio.crossOrigin = "anonymous";
+		source = audioCtx.createMediaElementSource(audio);
+		source.connect(analyser);
+		source.connect(audioCtx.createGain());
+		analyser.connect(audioCtx.destination);
+		changeTrack('https://vignette.wikia.nocookie.net/central/images/7/75/Rayman_Music_-_Main_Theme.ogg/revision/latest?cb=20170917040941');
+		isAudioInit = true;
+	}
 }
 
 function initAnalyser() {
@@ -336,8 +343,9 @@ function initAnalyser() {
  * @param {Object} newUrl
  */
 function changeTrack(newUrl) {
-	url = newUrl;
-	return audio.src = url;
+	audio.src = newUrl;
+	this.playTrack();
+	return audio.src;
 }
 
 /**
